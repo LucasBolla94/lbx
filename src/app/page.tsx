@@ -62,22 +62,33 @@ export default function Home() {
       setLbxData(mock);
     };
 
-    const fetchWalletBalance = () => {
-      fetch("/api/wallet-balance")
-        .then(res => res.json())
-        .then(data => {
-          let total = 0;
-          if (data?.allAssets?.length) {
-            data.allAssets.forEach((asset: any) => {
-              const price = asset.token_info?.price_info?.price_per_token || 0;
-              const balance = asset.token_info?.balance || 0;
-              const decimals = asset.token_info?.decimals || 0;
-              total += (balance / Math.pow(10, decimals)) * price;
-            });
-          }
-          setWalletUSD(total);
-        })
-        .catch(err => console.error("Error fetching wallet balance:", err));
+    const fetchWalletBalance = async () => {
+      try {
+        const [walletRes, orcaRes] = await Promise.all([
+          fetch("/api/wallet-balance"),
+          fetch("/api/orca")
+        ]);
+        const walletData = await walletRes.json();
+        const orcaData = await orcaRes.json();
+
+        let total = 0;
+        if (walletData?.allAssets?.length) {
+          walletData.allAssets.forEach((asset: any) => {
+            const price = asset.token_info?.price_info?.price_per_token || 0;
+            const balance = asset.token_info?.balance || 0;
+            const decimals = asset.token_info?.decimals || 0;
+            total += (balance / Math.pow(10, decimals)) * price;
+          });
+        }
+
+        if (orcaData?.totalOrcaUSD) {
+          total += orcaData.totalOrcaUSD;
+        }
+
+        setWalletUSD(total);
+      } catch (error) {
+        console.error("Error fetching wallet or orca balance:", error);
+      }
     };
 
     const updateData = () => {
